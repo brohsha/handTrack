@@ -1,4 +1,10 @@
+# Versions match what the Engine is actually developed and tested against.
+# The previous pins (mediapipe 0.8.11, numpy 1.23.3) predated Apple Silicon support
+# and no longer install on an arm64 Mac.
+mediapipe==0.10.14
+numpy==2.0.2
 opencv-python==4.5.5.64
-mediapipe==0.8.11
-numpy==1.23.3
 pyautogui==0.9.53
+
+# Shell <-> Engine development
+pytest==8.4.2
