@@ -243,6 +243,9 @@ class Engine:
         #: returning frames without ever raising, which would otherwise spin this loop
         #: forever with the user told nothing.
         self._read_failures = 0
+        #: Consecutive frames with no hand while a button is held. Only a drag cares:
+        #: it decides when an interrupted one has waited long enough to be cancelled.
+        self._lost_frames = 0
 
     # -- lifecycle ---------------------------------------------------------
 
@@ -403,6 +406,7 @@ class Engine:
             self._emit(protocol.error_event(
                 f"Could not verify cursor control: {type(failure).__name__}: {failure}"))
         self._previous_y = None
+        self._lost_frames = 0
         self._tracking = True
         # Opened here rather than before the camera, so the Grace Period covers the
         # first frames the user is actually in rather than the camera warming up.
@@ -423,12 +427,23 @@ class Engine:
         # raises, the light must not still be on behind it.
         self._close_camera()
         try:
+            # Before teardown, and after the camera, so a drag still in the air when
+            # Tracking ends springs back instead of dropping. Reaching here mid-drag
+            # is the normal end of a Disable Fist: the Lockout held the button all
+            # the way through the Countdown precisely so this could decide its fate.
+            self._cursor.cancel_drag()
+        except Exception as failure:
+            self._emit(protocol.error_event(
+                f"Could not cancel the drag in progress: "
+                f"{type(failure).__name__}: {failure}"))
+        try:
             self._cursor.stop()  # releases any held button before its threads go
         except Exception as failure:
             self._emit(protocol.error_event(
                 f"Cursor teardown failed: {type(failure).__name__}: {failure}"))
         self._previous_y = None
         self._read_failures = 0
+        self._lost_frames = 0
 
     def _close_camera(self) -> None:
         """Release the camera if it is open. Safe to call more than once."""
@@ -442,6 +457,12 @@ class Engine:
     #: long enough to ride out a hiccup and short enough that a dead camera is reported
     #: while the user still connects it to what they just did.
     MAX_READ_FAILURES = 60
+
+    #: Frames the hand may be missing mid-drag before the drag is cancelled. At ~30fps
+    #: this is under a fifth of a second -- long enough to ride out the odd dropped
+    #: detection, short enough that a hand which has genuinely left does not leave the
+    #: button held.
+    MAX_DRAG_LOST_FRAMES = 5
 
     def _process_frame(self) -> None:
         try:
@@ -493,8 +514,18 @@ class Engine:
                       landmarks=found[0].landmark if found else None)
 
     def _apply_lockout(self) -> None:
-        """Gesture Lockout: the hand controls nothing until the fist resolves."""
-        self._cursor.release()
+        """Gesture Lockout: the hand controls nothing until the fist resolves.
+
+        The cursor freezes but a held button stays held. Closing a hand into a
+        Disable Fist necessarily passes through a Pinch on the way -- the fingers
+        cross the touch threshold before they finish curling -- so a fist made
+        during a drag arrives with the button already down. Releasing it here would
+        drop whatever the user was carrying the instant their hand relaxed, four
+        seconds before the Countdown even asks whether they meant it.
+
+        Frozen and held, the drag simply waits: break the fist and it resumes where
+        it was, or let the Countdown finish and `_release_tracking` cancels it.
+        """
         self._cursor.set_active(False)
         # A fist holds the middle finger against the thumb, which is the scroll
         # gesture. Dropping the reference height stops the frame after the Lockout
@@ -502,15 +533,26 @@ class Engine:
         self._previous_y = None
 
     def _on_hand_lost(self) -> None:
-        self._cursor.release()
         self._cursor.set_active(False)
         # Same hazard the Lockout guards against: without this, a hand that leaves
         # mid-scroll and returns at a different height scrolls by the whole gap at once.
         self._previous_y = None
 
+        if not self._cursor.is_pressed:
+            return
+        # A drag is not abandoned on the first missed frame. MediaPipe loses a fast
+        # or motion-blurred hand for a frame or two routinely, and a hand moving
+        # fast is exactly what a drag looks like -- cancelling on the first miss
+        # would make dragging fail most often when it was working hardest. The
+        # cursor is already frozen, so the wait costs nothing but the delay.
+        self._lost_frames += 1
+        if self._lost_frames >= self.MAX_DRAG_LOST_FRAMES:
+            self._cursor.cancel_drag()
+
     def _drive_cursor(self, frame: _Frame) -> None:
         landmarks = frame.landmarks
         self._cursor.set_active(True)
+        self._lost_frames = 0  # the hand is back, so any interrupted drag survives
 
         # The base of the ring finger barely moves as the fingers work, so the
         # cursor does not drift while pinching.

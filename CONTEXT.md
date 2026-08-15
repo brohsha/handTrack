@@ -24,8 +24,20 @@ _Avoid_: hotkey, keybinding
 ### Gestures
 
 **Pinch**:
-Thumb touching a fingertip. Index pinch clicks; middle pinch scrolls.
+Thumb touching a fingertip. Index pinch clicks or Drags; middle pinch scrolls.
 _Avoid_: tap, touch, click gesture
+
+**Drag**:
+Carrying something across the screen by holding an index Pinch — pinch, move, let
+go. A Pinch released without travelling is a click instead: the two are one
+gesture, told apart only by whether the hand moved while it was held.
+_Avoid_: click and hold, grab, drag and drop, pinch drag
+
+**Springback**:
+What an interrupted Drag does instead of dropping: whatever was being carried
+returns to where it came from. Happens when the hand leaves the frame mid-Drag,
+and when Tracking ends while something is still held.
+_Avoid_: cancel, abort, undo, revert
 
 **Disable Fist**:
 A closed hand — all four fingers curled and the thumb folded against the hand —
@@ -47,8 +59,10 @@ _Avoid_: timer, disarm, shutdown timer
 
 **Gesture Lockout**:
 The condition, lasting from the start of the Dwell until the Countdown ends or
-cancels, in which the hand controls nothing — the cursor is frozen and any held
-mouse button is released.
+cancels, in which the hand controls nothing — the cursor is frozen where it
+stands. A Drag already under way is held rather than dropped: break the fist and
+it carries on from where it stopped, or let the Countdown finish and it Springs
+back.
 _Avoid_: freeze, suppression, ignore mode
 
 **Grace Period**:
