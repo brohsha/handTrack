@@ -67,14 +67,15 @@ PLIST
 # A stable identity keeps macOS seeing one app across rebuilds, so Camera and
 # Accessibility grants survive. Falls back to ad-hoc, where every rebuild looks like a
 # brand new app and both grants are silently dropped.
-if security find-identity -v -p codesigning 2>/dev/null | grep -q "$SIGN_IDENTITY"; then
-    echo "==> Signing as '$SIGN_IDENTITY' (permissions will survive rebuilds)"
-    codesign --force --deep --sign "$SIGN_IDENTITY" "$APP"
+# Just attempt it: `security find-identity` reports a certificate as invalid for
+# code signing in cases where signing nevertheless succeeds, so trying is the only
+# reliable test.
+if codesign --force --deep --sign "$SIGN_IDENTITY" "$APP" 2>/dev/null; then
+    echo "==> Signed as '$SIGN_IDENTITY' — permissions survive rebuilds"
 else
-    echo "==> Signing ad-hoc — '$SIGN_IDENTITY' is not a trusted code-signing identity."
-    echo "    Permissions will be dropped on every rebuild. To fix that permanently:"
-    echo "    sudo security add-trusted-cert -d -r trustRoot -p codeSign \\"
-    echo "        -k /Library/Keychains/System.keychain ~/.handtrack-dev-cert.pem"
+    echo "==> No '$SIGN_IDENTITY' identity; signing ad-hoc."
+    echo "    WARNING: an ad-hoc identity changes with every build, so macOS treats each"
+    echo "    build as a new app and silently drops Camera and Accessibility."
     codesign --force --deep --sign - "$APP"
 fi
 
