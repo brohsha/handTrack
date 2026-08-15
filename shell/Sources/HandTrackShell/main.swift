@@ -16,7 +16,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var engine: EngineProcess!
     private var menuBar: MenuBarController!
     private var overlay: CountdownOverlay!
-    private var hotkey: GlobalHotkey!
+    private var toggleShortcut: GlobalToggleShortcut!
 
     private var firstRunWindow: NSWindow?
     private var cancellables = Set<AnyCancellable>()
@@ -44,8 +44,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         state.shortcut = ShortcutStore.load()
         acceptedShortcut = state.shortcut
-        hotkey = GlobalHotkey { [weak self] in self?.toggleFromShortcut() }
-        if !hotkey.register(state.shortcut), state.shortcut != .default {
+        toggleShortcut = GlobalToggleShortcut { [weak self] in self?.toggleFromShortcut() }
+        if !toggleShortcut.register(state.shortcut), state.shortcut != .default {
             // The stored combination has been claimed by something else since it was
             // set. Falling back keeps a working shortcut rather than none at all.
             state.apply(engineError:
@@ -64,12 +64,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 // Only persist a binding macOS accepted. `accepted` is the last one that
                 // actually registered, so a rejected combination can be backed out of
                 // rather than becoming the value we restore on the next launch.
-                if self.hotkey.register(shortcut) {
+                if self.toggleShortcut.register(shortcut) {
                     self.acceptedShortcut = shortcut
                     ShortcutStore.save(shortcut)
                     self.state.apply(engineError: nil)
                 } else {
-                    _ = self.hotkey.register(self.acceptedShortcut)
+                    _ = self.toggleShortcut.register(self.acceptedShortcut)
                     self.state.apply(engineError:
                         "Another app already uses that shortcut. Keeping "
                         + "\(self.acceptedShortcut.displayString).")
@@ -176,7 +176,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillTerminate(_ notification: Notification) {
         // Release the camera before we go, so the green light never outlives the app.
         engine.shutdown()
-        hotkey.unregister()
+        toggleShortcut.unregister()
     }
 }
 

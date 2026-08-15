@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-/// Everything the user can see or change, shown in the popover the menu bar icon opens.
+/// Everything the user can see or change, shown in the Panel the menu bar icon opens.
 ///
 /// Reads state only from `AppState` and acts only through `EngineProcess`, so the Panel
 /// can never claim something the Engine has not actually reported.

@@ -96,7 +96,7 @@ class FistUpdate:
     disable: bool = False
 
 
-class DisableFistTimer:
+class DisableFistState:
     """The Disable Fist state machine: Grace Period, Dwell, Countdown, Lockout.
 
     Timed against a clock rather than counted in frames, because the frame rate
@@ -229,7 +229,7 @@ class Engine:
         self._emit_lock = threading.Lock()
 
         self._commands: "queue.Queue[str]" = queue.Queue()
-        self._fist_timer = DisableFistTimer(clock=clock)
+        self._fist_state = DisableFistState(clock=clock)
 
         self._camera = None
         self._hands = None
@@ -392,7 +392,7 @@ class Engine:
         self._tracking = True
         # Opened here rather than before the camera, so the Grace Period covers the
         # first frames the user is actually in rather than the camera warming up.
-        self._fist_timer.tracking_started()
+        self._fist_state.tracking_started()
         self._emit_state()
 
     def _stop_tracking(self) -> None:
@@ -403,7 +403,7 @@ class Engine:
 
     def _release_tracking(self) -> None:
         self._tracking = False
-        self._fist_timer.reset()
+        self._fist_state.reset()
         # The camera closes first. Hard Off promises the green light goes out, and the
         # cursor teardown below joins two threads and reaches Quartz — if that blocks or
         # raises, the light must not still be on behind it.
@@ -450,14 +450,14 @@ class Engine:
 
         self._read_failures = 0
 
-        update = self._fist_timer.update(
+        update = self._fist_state.update(
             frame.landmarks is not None and is_disable_fist(frame.landmarks))
         self._emit_fist_update(update)
 
         if update.disable:
             self._stop_tracking()
             return
-        if self._fist_timer.locked_out:
+        if self._fist_state.locked_out:
             self._apply_lockout()
             return
         if frame.landmarks is None:

@@ -53,7 +53,7 @@ final class AppState: ObservableObject {
 
 /// A recorded key combination, stored as a Carbon key code plus modifier flags so it
 /// can be handed straight to `RegisterEventHotKey`.
-/// `Shortcut.default` and `displayString` live in Hotkey.swift, next to the Carbon
+/// `Shortcut.default` and `displayString` live in ToggleShortcut.swift, next to the Carbon
 /// constants they are built from.
 struct Shortcut: Equatable, Codable {
     var keyCode: UInt32

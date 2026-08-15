@@ -17,7 +17,7 @@ from engine.handtrack_engine.engine import (
     DWELL_SECONDS,
     GRACE_PERIOD_SECONDS,
     TICK_SECONDS,
-    DisableFistTimer,
+    DisableFistState,
     FistState,
     FistUpdate,
 )
@@ -55,7 +55,7 @@ def clock():
 @pytest.fixture
 def timer(clock):
     """A timer already past its Grace Period, which most tests are not about."""
-    timer = DisableFistTimer(clock=clock)
+    timer = DisableFistState(clock=clock)
     timer.tracking_started()
     clock.advance(GRACE_PERIOD_SECONDS + FRAME)
     return timer
@@ -106,7 +106,7 @@ class TestHoldingThroughToDisable:
     def test_nothing_is_cancelled_along_the_way(self, timer, clock):
         assert cancellations(hold(timer, clock, TIME_TO_DISABLE)) == []
 
-    def test_the_timer_resets_itself_once_it_has_disabled(self, timer, clock):
+    def test_the_state_resets_itself_once_it_has_disabled(self, timer, clock):
         hold(timer, clock, TIME_TO_DISABLE)
         assert timer.state is FistState.IDLE
         assert not timer.locked_out
@@ -206,7 +206,7 @@ class TestGestureLockout:
 
 class TestGracePeriod:
     def test_a_fist_held_from_the_moment_tracking_starts_is_ignored(self, clock):
-        timer = DisableFistTimer(clock=clock)
+        timer = DisableFistState(clock=clock)
         timer.tracking_started()
 
         updates = hold(timer, clock, GRACE_PERIOD_SECONDS - FRAME)
@@ -228,7 +228,7 @@ class TestGracePeriod:
 
     def test_a_fist_still_held_when_the_grace_period_ends_counts_down_from_there(
             self, clock):
-        timer = DisableFistTimer(clock=clock)
+        timer = DisableFistState(clock=clock)
         timer.tracking_started()
         hold(timer, clock, GRACE_PERIOD_SECONDS - FRAME)
 

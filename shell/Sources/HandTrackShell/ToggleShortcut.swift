@@ -48,7 +48,7 @@ extension Shortcut {
         return "Key \(keyCode)"
     }
 
-    /// Virtual key code to printed legend. Fixed to the US layout: the hotkey itself
+    /// Virtual key code to printed legend. Fixed to the US layout: the toggleShortcut itself
     /// is registered by key code, so a different layout still triggers on the same
     /// physical key — only this label would name the wrong letter.
     private static let keyNames: [Int: String] = [
@@ -106,18 +106,18 @@ enum ShortcutStore {
     }
 }
 
-// MARK: - Global hotkey
+// MARK: - Global toggleShortcut
 
 /// The system-wide Toggle Shortcut. One instance owns one registration; call
 /// `register(_:)` again to rebind and the old combination is released first.
 @MainActor
-final class GlobalHotkey {
+final class GlobalToggleShortcut {
 
     /// Currently registered combination, or nil if nothing is registered.
     private(set) var shortcut: Shortcut?
 
     private let onFire: () -> Void
-    private var hotKeyRef: EventHotKeyRef?
+    private var shortcutRef: EventHotKeyRef?
     private var handlerRef: EventHandlerRef?
 
     init(onFire: @escaping () -> Void) {
@@ -129,7 +129,7 @@ final class GlobalHotkey {
         // Carbon teardown only. A `deinit` cannot call main-actor methods, but both
         // of these are plain C and the handler must go before `self`'s memory does —
         // it holds an unretained pointer back to us.
-        if let hotKeyRef { _ = UnregisterEventHotKey(hotKeyRef) }
+        if let shortcutRef { _ = UnregisterEventHotKey(shortcutRef) }
         if let handlerRef { _ = RemoveEventHandler(handlerRef) }
     }
 
@@ -144,7 +144,7 @@ final class GlobalHotkey {
         let status = RegisterEventHotKey(
             shortcut.keyCode,
             shortcut.modifiers,
-            EventHotKeyID(signature: hotkeySignature, id: hotkeyIdentifier),
+            EventHotKeyID(signature: shortcutSignature, id: shortcutIdentifier),
             GetApplicationEventTarget(),
             0,
             &ref
@@ -152,19 +152,19 @@ final class GlobalHotkey {
 
         guard status == noErr, let ref else { return false }
 
-        hotKeyRef = ref
+        shortcutRef = ref
         self.shortcut = shortcut
         return true
     }
 
     func unregister() {
-        if let hotKeyRef { _ = UnregisterEventHotKey(hotKeyRef) }
-        hotKeyRef = nil
+        if let shortcutRef { _ = UnregisterEventHotKey(shortcutRef) }
+        shortcutRef = nil
         shortcut = nil
     }
 
     fileprivate func fired(id: UInt32) {
-        guard id == hotkeyIdentifier else { return }
+        guard id == shortcutIdentifier else { return }
         onFire()
     }
 
@@ -179,7 +179,7 @@ final class GlobalHotkey {
         // Unretained: the handler is torn down in `deinit`, so it can never outlive us.
         _ = InstallEventHandler(
             GetApplicationEventTarget(),
-            hotkeyEventHandler,
+            shortcutEventHandler,
             1,
             &spec,
             Unmanaged.passUnretained(self).toOpaque(),
@@ -188,10 +188,10 @@ final class GlobalHotkey {
     }
 }
 
-private let hotkeySignature = OSType(0x6874_6B79)  // 'htky'
-private let hotkeyIdentifier: UInt32 = 1
+private let shortcutSignature = OSType(0x6874_6B79)  // 'htky'
+private let shortcutIdentifier: UInt32 = 1
 
-private let hotkeyEventHandler: EventHandlerUPP = { _, event, userData in
+private let shortcutEventHandler: EventHandlerUPP = { _, event, userData in
     guard let event, let userData else { return OSStatus(eventNotHandledErr) }
 
     var firedID = EventHotKeyID()
@@ -210,7 +210,7 @@ private let hotkeyEventHandler: EventHandlerUPP = { _, event, userData in
     // already on the main actor. Asserting that rather than hopping keeps the
     // toggle synchronous with the key press.
     return MainActor.assumeIsolated {
-        Unmanaged<GlobalHotkey>.fromOpaque(userData)
+        Unmanaged<GlobalToggleShortcut>.fromOpaque(userData)
             .takeUnretainedValue()
             .fired(id: firedID.id)
         return noErr
@@ -226,7 +226,7 @@ struct ShortcutRecorderView: View {
     @Binding var shortcut: Shortcut
 
     /// Called after a new combination is saved, so the owner can re-register the
-    /// `GlobalHotkey`. This view deliberately knows nothing about registration.
+    /// `GlobalToggleShortcut`. This view deliberately knows nothing about registration.
     var onRecorded: ((Shortcut) -> Void)?
 
     @State private var isRecording = false

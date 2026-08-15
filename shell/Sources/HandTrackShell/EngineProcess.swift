@@ -133,8 +133,8 @@ final class EngineProcess: ObservableObject {
 
         let process = Process()
         process.executableURL = URL(fileURLWithPath: paths.python)
-        process.arguments = [paths.script]
-        process.currentDirectoryURL = URL(fileURLWithPath: paths.script).deletingLastPathComponent()
+        process.arguments = [paths.entryPoint]
+        process.currentDirectoryURL = URL(fileURLWithPath: paths.entryPoint).deletingLastPathComponent()
 
         var environment = ProcessInfo.processInfo.environment
         // Python block-buffers stdout when it is a pipe, so without this the Engine's
@@ -429,12 +429,12 @@ final class EngineProcess: ObservableObject {
     }
 }
 
-/// Where the interpreter and the Engine's entry script live. Inside a built bundle
+/// Where the interpreter and the Engine's entry point lives. Inside a built bundle
 /// both come from Resources; in development they come from the repo, so the Shell can
 /// be run straight from SwiftPM without assembling an app first.
 private struct EnginePaths {
     let python: String
-    let script: String
+    let entryPoint: String
 
     /// Nothing is guessed. This process holds Camera and Accessibility, so whatever it
     /// executes inherits the webcam and the ability to synthesise input without any
@@ -447,8 +447,8 @@ private struct EnginePaths {
         let resources = Bundle.main.resourceURL
         let files = FileManager.default
 
-        guard let script = resources?.appending(path: "engine/main.py").path,
-              files.isReadableFile(atPath: script) else {
+        guard let entryPoint = resources?.appending(path: "engine/main.py").path,
+              files.isReadableFile(atPath: entryPoint) else {
             return nil
         }
 
@@ -456,21 +456,21 @@ private struct EnginePaths {
         //    the only candidate that travels with the signed app, so it wins.
         if let bundled = resources?.appending(path: "python/bin/python3").path,
            files.isExecutableFile(atPath: bundled) {
-            return EnginePaths(python: bundled, script: script)
+            return EnginePaths(python: bundled, entryPoint: entryPoint)
         }
 
         // 2. An explicit override. A deliberate act by whoever launched the app, rather
         //    than a path an attacker can guess and pre-create.
         if let override = ProcessInfo.processInfo.environment["HANDTRACK_PYTHON"],
            !override.isEmpty, files.isExecutableFile(atPath: override) {
-            return EnginePaths(python: override, script: script)
+            return EnginePaths(python: override, entryPoint: entryPoint)
         }
 
         // 3. The interpreter recorded at build time, which is correct for this machine
         //    rather than for whichever machine happened to build it.
         if let configured = Bundle.main.object(forInfoDictionaryKey: "HTDevelopmentPython") as? String,
            !configured.isEmpty, files.isExecutableFile(atPath: configured) {
-            return EnginePaths(python: configured, script: script)
+            return EnginePaths(python: configured, entryPoint: entryPoint)
         }
 
         return nil
