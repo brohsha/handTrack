@@ -188,16 +188,19 @@ struct PanelView: View {
 
             permissionRow(
                 title: "Camera",
-                granted: permissions.camera == .granted,
-                detail: cameraDetail,
-                action: { permissions.openCameraSettings() }
+                granted: permissions.camera.isGranted,
+                detail: permissions.camera.summary,
+                // handleCameraAction, not openCameraSettings: on a permission that has
+                // never been requested this prompts, which is the one path that can
+                // grant it without a trip to System Settings.
+                action: { permissions.handleCameraAction() }
             )
 
             permissionRow(
                 title: "Accessibility",
-                granted: permissions.accessibility == .granted,
-                detail: accessibilityDetail,
-                action: { permissions.openAccessibilitySettings() }
+                granted: permissions.accessibility.isGranted,
+                detail: permissions.accessibility.summary,
+                action: { permissions.handleAccessibilityAction() }
             )
         }
     }
@@ -226,22 +229,4 @@ struct PanelView: View {
         }
     }
 
-    private var cameraDetail: String {
-        switch permissions.camera {
-        case .granted: return "Granted"
-        case .notRequested: return "Not yet requested"
-        case .denied: return "Denied — hand tracking cannot see anything"
-        case .restricted: return "Blocked by a system policy"
-        }
-    }
-
-    private var accessibilityDetail: String {
-        switch permissions.accessibility {
-        case .granted: return "Granted"
-        case .notGranted: return "Missing — the cursor will not move"
-        case .awaitingGrant: return "Waiting for the switch in System Settings…"
-        // Worth naming: the grant may already be on, and only a relaunch can see it.
-        case .needsRestart: return "Granted? Relaunch handTrack to pick it up"
-        }
-    }
 }

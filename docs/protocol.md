@@ -57,6 +57,11 @@ The **Shell** requests Camera and Accessibility, so both prompts are attributed 
 the app bundle. The Engine assumes it has them and reports failure if it does not.
 The Engine must never trigger a permission prompt of its own.
 
-Accessibility denial is silent — cursor moves are accepted and do nothing (proven
-by the spike). The Engine therefore verifies a move landed where it was asked
-before reporting itself healthy, rather than assuming success.
+Accessibility denial is silent — cursor moves are accepted and do nothing (proven by
+the spike). So on entering Tracking the Engine nudges the cursor one pixel, reads the
+position back, and returns it to where it found it. If the nudge did not land, it
+emits a non-fatal `error` naming Accessibility.
+
+Non-fatal by design: the camera and the gestures are working, and the permission can
+be granted without restarting anything, so this reports the problem rather than
+refusing to run.

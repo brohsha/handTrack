@@ -165,6 +165,23 @@ class CursorController:
         self._scroll = None
         self._pressed = False
 
+    def probe_control(self) -> bool:
+        """Nudge the cursor one pixel and check it actually moved.
+
+        Accessibility denial is silent: pyautogui accepts the move, returns cleanly,
+        and nothing happens. Without reading the position back there is no way to
+        tell working cursor control from none, so Tracking would report itself
+        healthy while doing nothing at all.
+
+        One pixel, and put back afterwards, so proving it costs the user nothing
+        they can see.
+        """
+        start_x, start_y = pyautogui.position()
+        pyautogui.moveTo(start_x + 1, start_y, _pause=False)
+        landed = pyautogui.position() != (start_x, start_y)
+        pyautogui.moveTo(start_x, start_y, _pause=False)
+        return landed
+
     @property
     def is_pressed(self) -> bool:
         return self._pressed

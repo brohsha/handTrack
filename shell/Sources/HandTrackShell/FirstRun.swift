@@ -322,21 +322,12 @@ struct FirstRunView: View {
         PermissionRow(
             title: "Camera",
             detail: "Reads your hand from the webcam.",
-            statusText: cameraStatusText,
-            tone: checker.camera == .granted ? .good : .bad,
-            actionTitle: checker.camera == .notRequested ? "Allow…" : "Open System Settings",
+            statusText: checker.camera.summary,
+            tone: checker.camera.isGranted ? .good : .bad,
+            actionTitle: checker.camera.actionTitle,
             actionEnabled: checker.camera != .granted && checker.camera != .restricted,
             action: { checker.handleCameraAction() }
         )
-    }
-
-    private var cameraStatusText: String {
-        switch checker.camera {
-        case .granted: return "Granted"
-        case .notRequested: return "Not requested yet"
-        case .denied: return "Denied — switch handTrack on under Privacy & Security › Camera"
-        case .restricted: return "Blocked by a system policy"
-        }
     }
 
     // MARK: Accessibility
@@ -347,10 +338,10 @@ struct FirstRunView: View {
                 title: "Accessibility",
                 detail: "Moves the cursor. macOS will not grant this from a prompt — "
                     + "you have to switch handTrack on yourself.",
-                statusText: accessibilityStatusText,
+                statusText: checker.accessibility.summary,
                 tone: accessibilityTone,
-                actionTitle: "Open System Settings",
-                actionEnabled: checker.accessibility != .granted,
+                actionTitle: checker.accessibility.actionTitle,
+                actionEnabled: !checker.accessibility.isGranted,
                 action: { checker.handleAccessibilityAction() },
                 busy: checker.accessibility == .awaitingGrant
             )
@@ -362,15 +353,6 @@ struct FirstRunView: View {
             if checker.accessibility != .granted {
                 accessibilityHelp
             }
-        }
-    }
-
-    private var accessibilityStatusText: String {
-        switch checker.accessibility {
-        case .granted: return "Granted"
-        case .notGranted: return "Not granted"
-        case .awaitingGrant: return "Waiting for you to flip the switch…"
-        case .needsRestart: return "Restart handTrack to pick up the grant"
         }
     }
 

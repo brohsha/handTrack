@@ -388,6 +388,20 @@ class Engine:
                 f"Could not start cursor control: {type(failure).__name__}: {failure}"))
             self._emit_state()
             return
+
+        # Prove the cursor actually moves before claiming Tracking works. Accessibility
+        # can be revoked at any time and denial is silent, so the alternative is a lit
+        # camera, a confident green Indicator, and a cursor that never moves.
+        # Non-fatal: Tracking still starts, because the camera and gestures are fine and
+        # the user may grant permission without restarting anything.
+        try:
+            if not self._cursor.probe_control():
+                self._emit(protocol.error_event(
+                    "The cursor is not responding. Grant Accessibility to handTrack in "
+                    "System Settings > Privacy & Security, then restart handTrack."))
+        except Exception as failure:
+            self._emit(protocol.error_event(
+                f"Could not verify cursor control: {type(failure).__name__}: {failure}"))
         self._previous_y = None
         self._tracking = True
         # Opened here rather than before the camera, so the Grace Period covers the

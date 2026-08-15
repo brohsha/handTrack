@@ -92,13 +92,59 @@ Before running the script, you might need to adjust a few parameters based on yo
 
 ## Usage
 
-Run the script from your command line:
+### As a macOS app
+
+Build and install it, then find the hand icon in your menu bar:
+
+   ```
+   INSTALL=1 ./build/make-app.sh
+   ```
+
+macOS asks for two permissions the first time. **Camera** is a normal prompt.
+**Accessibility** cannot be granted by a prompt at all — you have to switch handTrack
+on yourself in System Settings › Privacy & Security › Accessibility, and then
+**relaunch**, because macOS caches the answer for the lifetime of the process. The
+app's setup screen walks you through both and offers the restart.
+
+Three ways to turn tracking on and off, all equivalent:
+
+- **⌃⌥⌘H** — rebindable under Settings
+- The **Tracking** toggle in the menu bar Panel
+- **Making a fist** and holding it for five seconds: one second to confirm you meant
+  it, then a four-second countdown beside your cursor
+
+Off means the camera is released and its light goes out, not that frames are being
+ignored.
+
+### As a script
+
+The original command-line behaviour still works and starts tracking immediately:
 
    ```
    python3 handTrack.py
    ```
 
 Make sure you have sufficient lighting and your hand is visible to the webcam for best performance.
+
+## Updating your installed copy
+
+After changing any code, one command rebuilds, reinstalls, and relaunches:
+
+   ```
+   INSTALL=1 ./build/make-app.sh
+   ```
+
+If the app is running it is quit first and reopened afterwards, so there is nothing
+else to remember.
+
+**Your permissions survive this**, because builds are signed with a fixed local
+certificate. That matters more than it sounds: an ad-hoc signature is derived from the
+app's contents, so every rebuild would look like a brand new app to macOS and silently
+drop both grants — leaving a `handTrack` row in System Settings, switched on, granting
+nothing. See [ADR-0002](docs/adr/0002-stable-signing-identity.md).
+
+The script tells you which identity it used. If it says it signed ad-hoc, the
+certificate is missing and permissions will not survive.
 
 ## Troubleshooting
 

@@ -100,11 +100,26 @@ echo "==> Built $APP"
 # Mac app belongs, and — since macOS ties permissions partly to the path — keeps the
 # grants attached to the copy actually being used.
 if [ "${INSTALL:-0}" = "1" ]; then
+    # Quit the running copy first: /Applications/handTrack.app is being replaced
+    # underneath it, and a running app whose bundle has been swapped behaves oddly.
+    if pgrep -f "handTrack.app/Contents/MacOS/HandTrackShell" >/dev/null; then
+        WAS_RUNNING=1
+        echo "==> Quitting the running copy"
+        pkill -f "handTrack.app/Contents/MacOS/HandTrackShell" || true
+        sleep 1
+    fi
+
     echo "==> Installing to /Applications"
     rm -rf "/Applications/handTrack.app"
     cp -R "$APP" "/Applications/handTrack.app"
     echo "==> Installed /Applications/handTrack.app"
-    echo "    Launch with: open -a handTrack"
+
+    if [ "${WAS_RUNNING:-0}" = "1" ] || [ "${RELAUNCH:-0}" = "1" ]; then
+        open -a handTrack
+        echo "==> Relaunched"
+    else
+        echo "    Launch with: open -a handTrack"
+    fi
 else
     echo "    Launch with: open $APP"
     echo "    Install with: INSTALL=1 $0"
