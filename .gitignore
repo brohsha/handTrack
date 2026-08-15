@@ -2,3 +2,10 @@ venv/
 __pycache__/
 *.pyc
 .DS_Store
+
+# Swift build products
+shell/.build/
+build/handTrack.app/
+
+# Test caches
+.pytest_cache/
