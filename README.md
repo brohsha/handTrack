@@ -1,158 +1,166 @@
 # <img src="handTrack.png" width="40" alt="handTrack" align="top" /> handTrack
-> This Python script allows you to control your computer's mouse cursor using hand gestures, with the help of a webcam. It uses OpenCV for image processing, MediaPipe for hand tracking, and PyAutoGUI for simulating mouse movements and clicks.
+
+> A macOS menu bar app that lets your hand replace the mouse. A webcam watches your
+> hand; the app moves the cursor, clicks, drags and scrolls.
 
 <p align="center">
   <img src="https://github.com/small-cactus/handTrack/assets/125771841/7e4b22b8-46b5-47e0-92ea-f8bfd13f829b" width="900" alt="handTrack" />
 </p>
 
-## Features
-- **Mouse Movement**: Just move your hand in front of the screen to control the mouse, your palm should be facing the camera like you're using the force.
-- **Mouse Click**: Touch your index and thumb together to click the mouse.
-- **Drag**: Keep your index and thumb together and move your hand — whatever you picked up comes with you. Let go to drop it. A pinch you release without moving is just a click, exactly as with a real mouse.
-- **Scrolling**: Touch your middle finger and thumb together, then drag up and down, just like using a touchscreen.
+## Gestures
 
+| Gesture | What it does |
+| --- | --- |
+| Palm to the camera, hand moves | Moves the cursor |
+| Index finger and thumb touch | Clicks |
+| Index and thumb held together while the hand moves | Drags, and drops when you let go |
+| Middle finger and thumb touch, then move up or down | Scrolls |
+| Closed fist, held | Stops tracking |
 
-## Demos
-### Accuracy even at range, 1080p webcam
-https://github.com/small-cactus/handTrack/assets/125771841/9bd73899-23d6-4333-980b-56a602728c6e
-> This is a combined 2 videos from a screen recording and my phone, there is no VFX, and no processing, everything you see is how it actually is when you use it. The webcam used in this video is the one in the MacBook.
+Click and Drag are one gesture, told apart by whether your hand travelled while you
+held the pinch. A pinch released on the spot is a click, the same way it works with
+a real mouse.
 
-### Extremely accurate click detection
+If a Drag is interrupted, by your hand leaving the frame or by tracking stopping
+while something is still held, whatever you were carrying returns to where it came
+from rather than dropping wherever it happened to be.
 
-https://github.com/small-cactus/handTrack/assets/125771841/c43e9694-5947-44b0-a232-ce0945ccc05d
-> This video has nothing special done to it, no tunings tweaked, no higher resolution camera, just everything from my MacBook.
+## What you need
 
-## How Our Hand Tracking System Works
+- macOS 14 (Sonoma) or later
+- A Mac with a webcam
+- Xcode command line tools, for `swift build`
+- Python 3.9 or newer
 
-Here's why our hand tracking system stands out from the competition:
+## Installing
 
-- **Absolute Hand Tracking**: Our system implements absolute hand tracking, meaning that specific hand positions always correspond to the same screen locations. This feature ensures predictable and intuitive control, enhancing the user experience by making interactions more natural and consistent.
+There is no downloadable release yet, so the app is built from source once and then
+lives in `/Applications` like anything else.
 
-- **Mapped Camera to Screen**: Our system maps the camera view to a specific portion of the screen, allowing full-screen hand tracking without the common issue of reaching tracking limits. This mapping ensures users can navigate the entire screen smoothly with their hand movements.
+**1. Clone the repository**
 
-- **Dynamic Mouse Steps for Low FPS**: We generate dynamic mouse steps to compensate for low camera frame rates, ensuring the mouse movement remains smooth and responsive. This feature is crucial for maintaining a high-quality user experience, even when camera input is slower.
+```bash
+git clone https://github.com/brohsha/handTrack.git
+cd handTrack
+```
 
-- **Real-Time, Multithreaded Processing**: The system runs on a separate thread and calculates hand tracking in real-time. This approach minimizes latency and maximizes performance, providing instant response to hand movements.
+**2. Set up the Python environment**
 
-- **Advanced Click Detection**: Our click detection algorithm is more refined than typical systems. Not only do we detect if the thumb and index finger are touching, but we also monitor the overall hand size changes. This method helps prevent accidental clicks and allows reliable activation from varying distances from the camera.
+The app ships its own hand-tracking code but not a Python runtime, so it needs an
+interpreter with MediaPipe available. The build looks for `venv/` in the repo by
+default.
 
-- **Smart Hand Presence Detection**: The system automatically disables hand tracking when no hands are detected and allows tracking for only one hand at a time. This prevents accidental mouse control from nearby people and ensures that the system is both secure and user-centric.
+```bash
+python3 -m venv venv
+./venv/bin/pip install -r requirements.txt
+```
 
+To use an interpreter you keep elsewhere, point at it with `ENGINE_PYTHON` instead
+of creating the venv.
 
+**3. Build and install**
 
-## Prerequisites
+```bash
+INSTALL=1 ./build/make-app.sh
+```
 
-Before you can use this script, you'll need to have Python installed on your machine, along with a few libraries. This guide assumes you have Python 3.6 or newer. (I used 3.11)
+The hand icon appears in your menu bar when it launches.
 
-## Installation
-> [!WARNING]
-> This script is optimized for a Macbook Pro Retina Display, meaning if you are using anything higher or lower resolution, hand tracking may or may not work.
+## Permissions
 
-1. **Clone the Repository**
-   First, clone this repository to your local machine using:
+macOS asks for two, and they do not behave the same way.
 
-   ```bash
-   git clone https://github.com/small-cactus/handTrack.git
-   cd handTrack
-   ```
+**Camera** is an ordinary prompt. Allow it.
 
-2. **Set Up a Python Virtual Environment** (optional but recommended)
+**Accessibility** has no prompt at all. You switch handTrack on yourself in
+System Settings › Privacy & Security › Accessibility, and then relaunch, because
+macOS caches the answer for as long as the process lives. The app's setup screen
+walks you through both and offers to do the restart.
 
-   ```bash
-   python -m venv venv
-   
-   venv\Scripts\activate      # On Windows
-   
-   source venv/bin/activate   # On macOS and Linux
-   ```
-
-3. **Install Required Libraries**
-   Install the required Python libraries with:
-
-   ```
-   pip install -r requirements.txt
-   ```
-
-   Here's what's installed, you don't need to do any step for this:
-
-   ```
-   opencv-python==4.5.5.64
-   mediapipe==0.8.11
-   numpy==1.23.3
-   pyautogui==0.9.53
-   ```
-
-## Configuration (In case defaults don't work)
-
-Before running the script, you might need to adjust a few parameters based on your webcam setup and personal preferences:
-
-- **Camera Index**: If your system has multiple cameras and the script does not use the correct one, change the `cap = cv2.VideoCapture(0)` line. Replace `0` with the index of the desired camera.
-- **Detection Confidence**: Adjust `min_detection_confidence` and `min_tracking_confidence` in the hand tracking setup section if the script is too sensitive or not sensitive enough.
-- **Model Complexity**: Change `model_complexity` in the hand detection setup. Use `1` (default) for a balance between performance and accuracy, or try `0` for faster but less accurate detection, and `2` for more accurate but slower detection.
-- **Distance Threshold**: If your fingers need to be closer or further apart to register a click, modify the `touch_threshold` value. This value measures changes in overall hand size, like what happens when you click your index and thumb together.
-
-## Usage
-
-### As a macOS app
-
-Build and install it, then find the hand icon in your menu bar:
-
-   ```
-   INSTALL=1 ./build/make-app.sh
-   ```
-
-macOS asks for two permissions the first time. **Camera** is a normal prompt.
-**Accessibility** cannot be granted by a prompt at all — you have to switch handTrack
-on yourself in System Settings › Privacy & Security › Accessibility, and then
-**relaunch**, because macOS caches the answer for the lifetime of the process. The
-app's setup screen walks you through both and offers the restart.
+## Using it
 
 Three ways to turn tracking on and off, all equivalent:
 
-- **⌃⌥⌘H** — rebindable under Settings
-- The **Tracking** toggle in the menu bar Panel
-- **Making a fist** and holding it for five seconds: one second to confirm you meant
-  it, then a four-second countdown beside your cursor
+- **⌃⌥⌘H**, rebindable under Settings in the Panel
+- The **Tracking** toggle in the Panel, which the menu bar icon opens
+- **Holding a fist**: one second to confirm you meant it, then a four-second
+  countdown beside your cursor. Opening your hand at any point cancels it.
 
-Off means the camera is released and its light goes out, not that frames are being
-ignored.
+Off releases the camera and puts its light out. Frames are not being captured and
+quietly ignored.
 
-### As a script
+Lighting matters more than camera quality. Keep your whole hand inside the frame.
 
-The original command-line behaviour still works and starts tracking immediately:
+## Updating
 
-   ```
-   python3 handTrack.py
-   ```
+One command rebuilds, reinstalls and relaunches:
 
-Make sure you have sufficient lighting and your hand is visible to the webcam for best performance.
+```bash
+INSTALL=1 ./build/make-app.sh
+```
 
-## Updating your installed copy
+A running copy is quit first and reopened afterwards, so there is nothing else to
+remember.
 
-After changing any code, one command rebuilds, reinstalls, and relaunches:
+Your permissions survive this, because builds are signed with a fixed local
+certificate. An ad-hoc signature is derived from the app's contents, so every
+rebuild would look like a brand new app to macOS and silently drop both grants,
+leaving a `handTrack` row in System Settings that is switched on and granting
+nothing. See
+[ADR-0002](docs/adr/0002-stable-signing-identity.md).
 
-   ```
-   INSTALL=1 ./build/make-app.sh
-   ```
-
-If the app is running it is quit first and reopened afterwards, so there is nothing
-else to remember.
-
-**Your permissions survive this**, because builds are signed with a fixed local
-certificate. That matters more than it sounds: an ad-hoc signature is derived from the
-app's contents, so every rebuild would look like a brand new app to macOS and silently
-drop both grants — leaving a `handTrack` row in System Settings, switched on, granting
-nothing. See [ADR-0002](docs/adr/0002-stable-signing-identity.md).
-
-The script tells you which identity it used. If it says it signed ad-hoc, the
-certificate is missing and permissions will not survive.
+The build prints which identity it used. If it reports signing ad-hoc, the
+certificate is missing and permissions will not survive the next build.
 
 ## Troubleshooting
 
-- **Script Doesn't Recognize Hand Movements**: Ensure your hand is well-lit and within the frame. Adjust the confidence thresholds if necessary.
-- **Mouse Movements Are Erratic**: Try adjusting the screen coordinates mapping in `convert_to_screen_coordinates` to match your screen size more accurately.
-- **Clicks Are Not Registering**: Modify the `touch_threshold`. You might need to increase or decrease this value based on your hand size.
+**The build stops with `no interpreter at ...`**
+The venv is missing, or the Python it points at has no MediaPipe. Recreate it, or
+pass another interpreter: `ENGINE_PYTHON=/path/to/python ./build/make-app.sh`
+
+**The cursor moves but nothing clicks**
+Accessibility is granted but the entry has gone stale. Clear it and relaunch so the
+app can re-add itself: `tccutil reset Accessibility com.brohsha.handTrack`
+
+**Your hand is not picked up**
+Check the lighting and that your hand is fully in frame, palm towards the camera.
+
+**The cursor is jumpy**
+Tracking maps the camera's view onto your screen, so a camera at an angle to the
+screen will feel skewed. Face the webcam straight on.
+
+## Running the tracking on its own
+
+The hand tracking still runs without the app, which is useful when working on it:
+
+```bash
+./venv/bin/python handTrack.py
+```
+
+This starts tracking immediately and logs to the terminal, with no menu bar icon.
+Ctrl-C or a closed fist stops it.
+
+## Contributing
+
+`CONTEXT.md` defines the vocabulary this project uses for gestures and app states,
+and the reasoning behind the larger decisions lives in [`docs/adr/`](docs/adr/).
+Read both before changing anything.
+
+Tests:
+
+```bash
+./venv/bin/python -m pytest engine/tests
+```
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+MIT, carried over from the original project. See [LICENSE](LICENSE).
+
+---
+
+<sup>handTrack began as [small-cactus/handTrack](https://github.com/small-cactus/handTrack)
+by Anthony Hayward: a Python script that did the hand tracking and cursor control,
+and the demo footage above. This version turns it into a macOS app with a menu bar
+Shell, a gesture vocabulary, drag support and a way to stop it without reaching for
+the keyboard. For the original script, go and see
+[his repository](https://github.com/small-cactus/handTrack).</sup>
