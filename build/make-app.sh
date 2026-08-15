@@ -19,6 +19,14 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 APP="$ROOT/build/handTrack.app"
 CONFIG="${CONFIG:-debug}"
 SIGN_IDENTITY="${SIGN_IDENTITY:-handTrack Local Dev}"
+# The interpreter that has MediaPipe installed. Override for a venv kept elsewhere.
+ENGINE_PYTHON="${ENGINE_PYTHON:-$ROOT/venv/bin/python}"
+
+if [ ! -x "$ENGINE_PYTHON" ]; then
+    echo "error: no interpreter at $ENGINE_PYTHON" >&2
+    echo "       create the venv, or set ENGINE_PYTHON to one with MediaPipe installed." >&2
+    exit 1
+fi
 
 echo "==> Building Shell ($CONFIG)"
 cd "$ROOT/shell"
@@ -63,6 +71,13 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
 </dict>
 </plist>
 PLIST
+
+# Record the interpreter this machine actually built against. The Shell will not fall
+# back to a guessed path — it holds Camera and Accessibility, so anything it executes
+# inherits them, and a fixed user-writable path would be an invitation to plant a binary
+# there. Written here, the value is correct per machine instead of per author.
+/usr/libexec/PlistBuddy -c "Add :HTDevelopmentPython string $ENGINE_PYTHON" \
+    "$APP/Contents/Info.plist" >/dev/null
 
 # A stable identity keeps macOS seeing one app across rebuilds, so Camera and
 # Accessibility grants survive. Falls back to ad-hoc, where every rebuild looks like a

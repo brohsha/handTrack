@@ -123,7 +123,13 @@ final class EngineProcess: ObservableObject {
         readers.forEach { $0.cancel() }
         readers.removeAll()
 
-        let paths = EnginePaths.resolve()
+        guard let paths = EnginePaths.resolve() else {
+            state.apply(status: .failed(reason:
+                "No Python interpreter found. Rebuild with build/make-app.sh, or set "
+                + "HANDTRACK_PYTHON to the interpreter that has MediaPipe installed."))
+            log("no interpreter resolved; refusing to guess a path")
+            return false
+        }
 
         let process = Process()
         process.executableURL = URL(fileURLWithPath: paths.python)
@@ -430,33 +436,43 @@ private struct EnginePaths {
     let python: String
     let script: String
 
-    private static let devPython = "/Users/apple/handTrack/venv/bin/python"
-    private static let devScript = "/Users/apple/handTrack/engine/main.py"
-
-    static func resolve() -> EnginePaths {
+    /// Nothing is guessed. This process holds Camera and Accessibility, so whatever it
+    /// executes inherits the webcam and the ability to synthesise input without any
+    /// further prompt. A fallback to a fixed, user-writable path would mean that on any
+    /// machine where the path happens not to exist, anyone able to write to the user's
+    /// home could create it and be executed with those grants.
+    ///
+    /// So each candidate is explicit, and if none resolves the Engine does not start.
+    static func resolve() -> EnginePaths? {
         let resources = Bundle.main.resourceURL
         let files = FileManager.default
 
-        // The bundle carries no interpreter yet (Q13); this picks one up the moment
-        // the build starts embedding it, without another change here.
-        var python = Self.devPython
+        guard let script = resources?.appending(path: "engine/main.py").path,
+              files.isReadableFile(atPath: script) else {
+            return nil
+        }
+
+        // 1. An interpreter inside the bundle. Absent until Q13 embeds one, but it is
+        //    the only candidate that travels with the signed app, so it wins.
         if let bundled = resources?.appending(path: "python/bin/python3").path,
            files.isExecutableFile(atPath: bundled) {
-            python = bundled
+            return EnginePaths(python: bundled, script: script)
         }
-        // The override wins outright, so a different interpreter can be tried without
-        // rebuilding the bundle.
+
+        // 2. An explicit override. A deliberate act by whoever launched the app, rather
+        //    than a path an attacker can guess and pre-create.
         if let override = ProcessInfo.processInfo.environment["HANDTRACK_PYTHON"],
-           !override.isEmpty {
-            python = override
+           !override.isEmpty, files.isExecutableFile(atPath: override) {
+            return EnginePaths(python: override, script: script)
         }
 
-        var script = Self.devScript
-        if let bundled = resources?.appending(path: "engine/main.py").path,
-           files.fileExists(atPath: bundled) {
-            script = bundled
+        // 3. The interpreter recorded at build time, which is correct for this machine
+        //    rather than for whichever machine happened to build it.
+        if let configured = Bundle.main.object(forInfoDictionaryKey: "HTDevelopmentPython") as? String,
+           !configured.isEmpty, files.isExecutableFile(atPath: configured) {
+            return EnginePaths(python: configured, script: script)
         }
 
-        return EnginePaths(python: python, script: script)
+        return nil
     }
 }

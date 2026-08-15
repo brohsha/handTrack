@@ -36,10 +36,14 @@ authorise; this design relies on macOS crediting the child's access to the paren
 bundle.
 
 **This was proven by spike before any interface was built.** With the grants held by
-an ad-hoc signed `handTrack.app`, a Python child process captured a 1080p frame and
-moved the cursor to the exact requested coordinates. The grants also survived
-rebuilding and re-signing the bundle, so a stable signing certificate is not needed
-for development. Three findings worth keeping:
+`handTrack.app`, a Python child process captured a 1080p frame and moved the cursor to
+the exact requested coordinates. Four findings worth keeping:
+
+- **The bundle needs a stable signing identity.** An ad-hoc signature is derived from
+  the bundle's contents, so every rebuild is a different app to macOS and both grants
+  are silently dropped. An earlier revision of this ADR claimed the opposite on the
+  strength of a single rebuild that happened to survive; re-granting after every build
+  proved that wrong. See ADR-0002.
 
 - The Shell must request both permissions, so the prompts are attributed to the app
   bundle. The Engine must never prompt for anything.

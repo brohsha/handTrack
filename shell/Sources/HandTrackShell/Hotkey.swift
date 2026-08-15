@@ -296,8 +296,10 @@ struct ShortcutRecorderView: View {
         }
 
         let recorded = Shortcut(keyCode: keyCode, modifiers: modifiers)
+        // Published, not persisted. Whoever owns the GlobalToggleShortcut decides whether
+        // macOS accepted this combination, and only an accepted one is worth storing —
+        // saving here would make a rejected binding the value we fall back to.
         shortcut = recorded
-        ShortcutStore.save(recorded)
         stopRecording()
         onRecorded?(recorded)
     }

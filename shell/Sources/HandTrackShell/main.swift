@@ -21,6 +21,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var firstRunWindow: NSWindow?
     private var cancellables = Set<AnyCancellable>()
 
+    /// The last combination macOS actually accepted, so a rejected rebinding has
+    /// something real to fall back to.
+    private var acceptedShortcut: Shortcut = .default
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         Diagnostics.log("didFinishLaunching")
 
@@ -39,8 +43,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         state.shortcut = ShortcutStore.load()
+        acceptedShortcut = state.shortcut
         hotkey = GlobalHotkey { [weak self] in self?.toggleFromShortcut() }
-        _ = hotkey.register(state.shortcut)
+        if !hotkey.register(state.shortcut), state.shortcut != .default {
+            // The stored combination has been claimed by something else since it was
+            // set. Falling back keeps a working shortcut rather than none at all.
+            state.apply(engineError:
+                "\(state.shortcut.displayString) is no longer available — using "
+                + "\(Shortcut.default.displayString).")
+            acceptedShortcut = .default
+            state.shortcut = .default
+        }
 
         // Rebinding in Settings re-registers immediately; the old combination is
         // released by register(_:) itself.
@@ -48,16 +61,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .dropFirst()
             .sink { [weak self] shortcut in
                 guard let self else { return }
-                // Only persist a binding macOS actually accepted. Saving a rejected one
-                // would leave the user with no working shortcut and a preference that
-                // reinstates the dead combination on every launch.
+                // Only persist a binding macOS accepted. `accepted` is the last one that
+                // actually registered, so a rejected combination can be backed out of
+                // rather than becoming the value we restore on the next launch.
                 if self.hotkey.register(shortcut) {
+                    self.acceptedShortcut = shortcut
                     ShortcutStore.save(shortcut)
                     self.state.apply(engineError: nil)
                 } else {
+                    _ = self.hotkey.register(self.acceptedShortcut)
                     self.state.apply(engineError:
-                        "Another app already uses that shortcut. The previous one is still active.")
-                    _ = self.hotkey.register(ShortcutStore.load())
+                        "Another app already uses that shortcut. Keeping "
+                        + "\(self.acceptedShortcut.displayString).")
+                    self.state.shortcut = self.acceptedShortcut
                 }
             }
             .store(in: &cancellables)
@@ -174,7 +190,11 @@ application.run()
 /// Launch-path logging. A menu-bar-only app has nowhere to print, so failures during
 /// startup are otherwise invisible — the process just sits there looking healthy.
 enum Diagnostics {
-    private static let path = "/tmp/handtrack.log"
+    /// Under the user's own Logs directory, not /tmp. A predictable name in a
+    /// world-writable directory can be pre-created as a symlink pointing anywhere the
+    /// user can write, and the contents — bundle paths, permission state, screen
+    /// geometry — are readable by every other account on the machine.
+    private static let path = ("~/Library/Logs/handTrack.log" as NSString).expandingTildeInPath
 
     static func log(_ message: String) {
         let line = "[\(Date())] \(message)\n"

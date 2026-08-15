@@ -58,6 +58,15 @@ struct PanelView: View {
             }
             .toggleStyle(.switch)
             .controlSize(.large)
+            // Disabled rather than silently ignored, so a missing grant reads as "not
+            // available yet" instead of a switch that flips back for no visible reason.
+            .disabled(!state.permissionsSatisfied && !state.isTracking)
+
+            if !state.permissionsSatisfied {
+                Text("Grant Camera and Accessibility in Settings to start.")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            }
 
             Divider()
 
@@ -99,7 +108,14 @@ struct PanelView: View {
     private var power: Binding<Bool> {
         Binding(
             get: { state.isTracking || state.status == .starting },
-            set: { wantsTracking in wantsTracking ? engine.start() : engine.stop() }
+            set: { wantsTracking in
+                // Starting without both grants gets you a lit camera and a cursor that
+                // never moves, because Accessibility denial is silent. Stopping is always
+                // allowed: refusing to switch something off is never the safer choice.
+                guard wantsTracking else { return engine.stop() }
+                guard state.permissionsSatisfied else { return }
+                engine.start()
+            }
         )
     }
 
